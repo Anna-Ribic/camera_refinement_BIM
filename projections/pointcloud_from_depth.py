@@ -86,6 +86,31 @@ def sample_depth_values_and_coordinates(depth_image, num_samples=1000):
 
     return depth_values[depth_mask], random_u[depth_mask], random_v[depth_mask]
 
+def sample_depth_values_and_coordinates_grid(depth_image, grid_size=10):
+    # Get the height and width of the depth image
+    height, width = depth_image.shape[:2]
+
+    # Create a grid of pixel coordinates
+    grid_u, grid_v = np.meshgrid(np.linspace(0, width - 1, grid_size),
+                                 np.linspace(0, height - 1, grid_size))
+
+    # Flatten the grid coordinates
+    grid_u_flat = grid_u.flatten().astype(int)
+    grid_v_flat = grid_v.flatten().astype(int)
+
+    # Sample depth values at the grid coordinates
+    depth_values = np.array([depth_image[v, u] for u, v in zip(grid_u_flat, grid_v_flat)])
+
+    # Create a depth mask based on a condition (in this case, less than 1.5 times the mean depth)
+    depth_mask = depth_values < 1.5 * depth_image.mean()
+
+    # Filter depth values and corresponding coordinates based on the depth mask
+    filtered_depth_values = depth_values[depth_mask]
+    filtered_grid_u = grid_u_flat[depth_mask]
+    filtered_grid_v = grid_v_flat[depth_mask]
+
+    return filtered_depth_values, filtered_grid_u, filtered_grid_v
+
 
 def read_transformation_matrix(file_path):
     with open(file_path, 'r') as file:
@@ -120,14 +145,11 @@ if __name__ == "__main__":
             translation = np.array([float(parts[1]), float(parts[2]), float(parts[3])])
             rotation = np.array([float(parts[4]), float(parts[5]), float(parts[6]), float(parts[7])])
 
-            print(timestamp)
-
             # Store transformation matrix
-            transformation_matrix = create_transformation_matrix(translation, rotation)
+            #transformation_matrix = create_transformation_matrix(translation, rotation)
 
-            transformation_matrix_og = read_transformation_matrix(os.path.join(root, "normalized", "%16d.txt" % timestamp))
-
-            print(transformation_matrix, transformation_matrix_og)
+            #Ground truth poses
+            transformation_matrix = read_transformation_matrix(os.path.join(root, "normalized", "%16d.txt" % timestamp))
 
             # Load RGB and depth images
             if not os.path.exists(os.path.join(result_dir, "%06d.npy" % timestamp)):
@@ -139,7 +161,7 @@ if __name__ == "__main__":
 
             assert img.shape[:-1] == depth.shape
 
-            zs, us, vs = sample_depth_values_and_coordinates(depth, num_samples=5000)
+            zs, us, vs = sample_depth_values_and_coordinates_grid(depth,grid_size=100)#sample_depth_values_and_coordinates(depth, num_samples=5000)
 
             fx = 2351.85909
             fy = 2353.56734
@@ -171,7 +193,7 @@ if __name__ == "__main__":
 
         cloud = o3d.geometry.PointCloud()
         cloud.points = o3d.utility.Vector3dVector(np.concatenate(all_points, axis = 0))
-        o3d.io.write_point_cloud(os.path.join(output_dir, 'pcfull_off.ply'), cloud)
+        o3d.io.write_point_cloud(os.path.join(output_dir, 'grid_sampled_dense_gt.ply'), cloud)
 
             #with open(os.path.join(output_dir, 'pcfull.obj'), 'a') as ob:
             #    for i in points_in_world:
