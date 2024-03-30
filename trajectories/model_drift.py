@@ -6,6 +6,9 @@ from pathlib import Path
 import yaml
 import open3d as o3d
 import torch
+import decimal
+
+from scipy.spatial.transform import Rotation
 
 
 def create_transformation_matrix(translation, rotation):
@@ -97,6 +100,50 @@ def rot_theta(th):
         dtype=torch.float32,
     )
 
+def rotation_matrix_to_euler(rot_matrix):
+    """
+    Convert a 3x3 rotation matrix to Euler angles (yaw, pitch, roll).
+
+    Args:
+    - rot_matrix (np.ndarray): 3x3 rotation matrix.
+
+    Returns:
+    - euler_angles (np.ndarray): Euler angles [yaw, pitch, roll] in degrees.
+    """
+    # Ensure the input is a NumPy array
+    rot_matrix = np.array(rot_matrix)
+
+    # Extract individual rotation angles (yaw, pitch, roll)
+    yaw = np.arctan2(rot_matrix[1, 0], rot_matrix[0, 0])
+    pitch = np.arctan2(-rot_matrix[2, 0], np.sqrt(rot_matrix[2, 1]**2 + rot_matrix[2, 2]**2))
+    roll = np.arctan2(rot_matrix[2, 1], rot_matrix[2, 2])
+
+    # Convert angles to degrees
+    yaw_deg = np.degrees(yaw)
+    pitch_deg = np.degrees(pitch)
+    roll_deg = np.degrees(roll)
+
+    return yaw_deg, pitch_deg, roll_deg
+
+
+def rotate_camera(initial_rotation_matrix, pitch_deg, yaw_deg):
+    # Load the initial rotation matrix
+    initial_rotation = Rotation.from_matrix(initial_rotation_matrix)
+
+    # Apply pitch and yaw rotations
+    pitch_radians = np.radians(pitch_deg)
+    yaw_radians = np.radians(yaw_deg)
+    pitch_rotation = Rotation.from_euler('x', pitch_radians, degrees=False)
+    yaw_rotation = Rotation.from_euler('z', yaw_radians, degrees=False)
+
+    # Combine rotations
+    final_rotation = initial_rotation * pitch_rotation * yaw_rotation
+
+    # Get the rotated rotation matrix
+    rotated_matrix = final_rotation.as_matrix()
+
+    return rotated_matrix
+
 
 if __name__ == "__main__":
     root = "../data/"
@@ -107,50 +154,76 @@ if __name__ == "__main__":
     result_dir = os.path.join(root, "lidar", "depth-np")
     sem_dir = os.path.join(root, "rgb", "sem_masks")
 
-    dev_trans = 0.25
-    dev_rot = 2.5
+    #Modify for different offsets
+    dev_trans = 0.02
+    dev_rot = 5
 
-    with open('offset_trajectory_'+str(dev_trans)+'_'+str(dev_rot)+'.txt', 'a') as ob:
-        ob.write("# timestamp tx ty tz qx qy qz qw\n")
+    offsets = []
 
-    with open('groundtruth2.txt', 'r') as file:
-        next(file)
+    with open('semantic_groundtruth.txt', 'r') as file:
         f = 1
         prev = np.asarray([0,0,0], dtype=np.float32)
         for line in file:
             # Split the line into timestamp, translation, and rotation parts
             parts = line.split()
-            timestamp = int(parts[0])
+            timestamp = int(decimal.Decimal(parts[0])*1000000) #int(parts[0])
             translation = np.array([float(parts[1]), float(parts[2]), float(parts[3])])
             rotation = np.array([float(parts[4]), float(parts[5]), float(parts[6]), float(parts[7])])
 
             # Store transformation matrix
-            #transformation_matrix = create_transformation_matrix(translation, rotation)
+            transformation_matrix = create_transformation_matrix(translation, rotation)
 
-            transformation_matrix = read_transformation_matrix(os.path.join(root, "normalized", "%16d.txt" % timestamp))
+            #transformation_matrix = read_transformation_matrix(os.path.join(root, "normalized", "%16d.txt" % timestamp))
 
             point = np.zeros((4, 1))
             point[-1] = 1
             cam = transformation_matrix @ point
             cam = cam[:-1].squeeze()
 
-            phi = np.random.normal(0, dev_rot)
-            theta = np.random.normal(0, dev_rot)
+            pitch = np.random.normal(0, dev_rot)
+            yaw = np.random.normal(0, dev_rot)
 
-            rot_mat = rot_theta(theta / 180.0 * np.pi) @ rot_phi(phi/ 180.0 * np.pi) @ transformation_matrix
+            print("Samples in degrees (yaw, pitch):", yaw, pitch)
+
+
+            #rot_mat = rot_phi(np.radians(pitch)) @ rot_theta(np.radians(yaw))
+            #rot_mat = rot_mat @ transformation_matrix
+
+            initial_rotation = Rotation.from_matrix(transformation_matrix[:3,:3])
+            initial_euler = initial_rotation.as_euler('xyz', degrees=True)
+
+            rot_mat = rotate_camera(transformation_matrix[:3,:3], pitch, yaw)
+
+            rotated_rotation = Rotation.from_matrix(rot_mat)
+            rotated_euler = rotated_rotation.as_euler('xyz', degrees=True)
+
+            yaw_difference = rotated_euler[2] - initial_euler[2]
+            pitch_difference = rotated_euler[0] - initial_euler[0]
+            roll_difference = rotated_euler[1] - initial_euler[1]
+
+            print("Difference in yaw (degrees):", yaw_difference)
+            print("Difference in pitch (degrees):", pitch_difference)
+            print("Difference in roll (degrees):", roll_difference)
+
             rot_quat = rotation_matrix_to_quaternion(rot_mat)
 
-            offset = np.random.normal(prev,  np.asarray([dev_trans, dev_trans, 0.1]))
+            offset = np.random.normal(prev,  np.asarray([dev_trans, dev_trans, 0]))
             prev = offset
 
-            cam = cam + offset
+            cam_o = cam + offset
+
+            offsets.append(np.mean(offset))
+
+            print('line: ', f )
+            f+=1
 
             with open('offset_trajectory_'+str(dev_trans)+'_'+str(dev_rot)+'.txt', 'a') as ob:
-                ob.write(parts[0]+' ' + str(cam[0].item()) + ' ' + str(cam[1].item()) + ' ' + str(cam[2].item()) + ' ' + str(rot_quat[0].item()) + ' ' + str(rot_quat[1].item()) + ' ' + str(rot_quat[2]) + ' ' + str(rot_quat[3].item()))
+                ob.write(parts[0]+' ' + str(cam_o[0].item()) + ' ' + str(cam_o[1].item()) + ' ' + str(cam[2].item()) + ' ' + str(rot_quat[0].item()) + ' ' + str(rot_quat[1].item()) + ' ' + str(rot_quat[2]) + ' ' + str(rot_quat[3].item()))
                 ob.write('\n')
 
 
 
-
+        rmse = np.sqrt(np.mean(np.square(offsets)))
+        print("RMSE:", rmse)
 
 

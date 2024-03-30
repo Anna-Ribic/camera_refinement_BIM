@@ -191,15 +191,11 @@ if __name__ == "__main__":
 
             all_points.append(points_in_world)
 
+        all_points = np.concatenate(all_points, axis = 0)
         cloud = o3d.geometry.PointCloud()
-        cloud.points = o3d.utility.Vector3dVector(np.concatenate(all_points, axis = 0))
+        cloud.points = o3d.utility.Vector3dVector(all_points)
         o3d.io.write_point_cloud(os.path.join(output_dir, 'grid_sampled_dense_gt.ply'), cloud)
 
-            #with open(os.path.join(output_dir, 'pcfull.obj'), 'a') as ob:
-            #    for i in points_in_world:
-            #        #print('v ' + str(i[0].item()) + ' ' + str(i[1].item()) + ' ' + str(i[2].item()) )
-            #        ob.write('v ' + str(i[0].item()) + ' ' + str(i[1].item()) + ' ' + str(i[2].item()))
-            #        ob.write('\n')
-            #f += 1
+    
 
 
