@@ -8,6 +8,10 @@ This repository contains helper functions for camera refinement with Building In
 - **File:** `projections/dense_depth_from_lidar.py`
 - **Description:** Generates a dense depth map from sparse lidar data using interpolation.
 
+### Dense Depth with CompletionFormer
+- **File:** `projections/CompletionFormer`
+- **Description:** Generates a dense depth map from sparse lidar data or another dense depth image using [CompletionFormer](https://github.com/youmi-zym/CompletionFormer). Clone the CompletionFormer repo and place iterate.sh and runnet.py in the 'src' folder. Running the iterate.sh script runs the CompletionFormer pipeline for all images in the specified folder path.
+
 ### Create Synthetic Trajectory
 - **File:** `trajectories/model_drift.py`
 - **Description:** Generates a .txt file specifying offset trajectory from groundtruth
