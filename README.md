@@ -1,6 +1,6 @@
 # Camera Refinement BIM Helper Functions
 
-This repository contains helper functions for camera refinement with Building Information Modeling (BIM) models with the FACaP (https://github.com/Anna-Ribic/FACaP) pipeline.
+This repository contains helper functions for camera refinement with Building Information Modeling (BIM) models with the FACaP (https://github.com/Anna-Ribic/FACaP) pipeline. In order to use these functionalities you need to download the [ConSLAM](https://github.com/mac137/ConSLAM) dataset as outlined in their repository.
 
 ## Helper Functions
 
