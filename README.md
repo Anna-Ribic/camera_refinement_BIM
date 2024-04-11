@@ -14,14 +14,15 @@ This repository contains helper functions for camera refinement with Building In
 
 ### Create Synthetic Trajectory
 - **File:** `trajectories/model_drift.py`
-- **Description:** Generates a .txt file specifying offset trajectory from groundtruth
+- **Description:** Generates a .txt file specifying offset trajectory from groundtruth. Groundtruth camera poses for ConSLAM can be found [here](https://drive.google.com/file/d/1RWDW8mFWtAcG4TkiAherr0B9nyX6v3Qu/view?usp=sharing).
 
 ### Create Scan for FACaP 
 - **File:** `projections/create_scan.py`
-- **Description:** Creates a Scan folder from a trajectory file.
+- **Description:** Creates a Scan folder from a trajectory file. Depth maps can be found [here](https://drive.google.com/file/d/1CfH5QlGJp0ue0493MT-ZGwMn5pXSSnbX/view?usp=sharing) and [here](https://drive.google.com/file/d/1N7UuIEnn3ugclh8xIf5gKJksClSmVh3W/view?usp=drive_link). 
 
 - **File:** `projections/floorplan_from_json.py`
 - **Description:** Generates a `floorplan.npy` file from a JSON file.
+
 
 ### Example Scan
 - **File:** `scan_lowres/`
